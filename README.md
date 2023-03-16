@@ -36,5 +36,3 @@ end
 exports('Torpedo', Torpedo)```
 
 
-Good luck.
-
