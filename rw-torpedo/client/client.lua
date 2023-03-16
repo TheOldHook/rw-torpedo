@@ -93,6 +93,7 @@ RegisterNetEvent('rw:client:getLocation', function(data, whatDo)
 
     if randomWep >= 1 then
         GiveWeaponToPed(entity, entityWep, 1, false, true)
+        local data = exports['ps-dispatch']:Torpedo('Torpedo oppdrag pågår, farlig vold', coords2)
         if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") then
             -- Give some ammo to the pistol
             SetPedAmmo(entity, entityWep, 100)
