@@ -28,10 +28,10 @@ RegisterNetEvent('rw:server:reward')
 AddEventHandler('rw:server:reward', function()
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
-    local reward = math.random(300, 1000)
+    local reward = math.random(800, 10000)
     Player.Functions.AddItem('svartepenger', reward)
-    TriggerClientEvent('inventory:client:ItemBox', src, 'svartepenger', 'add', reward)
+    TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items["svartepenger"], "add", reward)
     TriggerClientEvent('XNL_NET:AddPlayerXP', source, 100)
-    TriggerClientEvent('okokNotify:Alert', src, 'Torpedo Oppdrag Fullført', 'Du fikk betaling for jobben', 1000, 'success')
+    TriggerClientEvent('okokNotify:Alert', src, 'Torpedo Oppdrag Fullført', 'Du fikk betaling for jobben', 5000, 'success')
 end)
 
