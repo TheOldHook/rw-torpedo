@@ -25,6 +25,7 @@ Config.Weapons = {
     `weapon_bat`,
     `weapon_golfclub`,
     `weapon_crowbar`,
+    `weapon_pistol`,
 }
 
 
@@ -58,5 +59,7 @@ Config.Coords = {
     vector4(288.48, -1601.22, 31.12, 17.31),
     vector4(203.35, -1646.03, 29.57, 292.06),
     vector4(778.73, -1625.64, 31.04, 296.32),
-
+    vector4(-596.92, -888.62, 25.48, 90.75),
+    vector4(-782.04, -805.74, 20.78, 200.74),
+    vector4(-700.74, -1139.27, 10.52, 44.12),
 }

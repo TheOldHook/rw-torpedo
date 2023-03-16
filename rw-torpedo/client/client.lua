@@ -91,8 +91,12 @@ RegisterNetEvent('rw:client:getLocation', function(data, whatDo)
     SetBlipSprite(blip, 1)
     SetBlipColour(blip, 1)
 
-    if randomWep >= 65 then
+    if randomWep >= 1 then
         GiveWeaponToPed(entity, entityWep, 1, false, true)
+        if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") then
+            -- Give some ammo to the pistol
+            SetPedAmmo(entity, entityWep, 100)
+        end
     end
 end)
 
@@ -135,10 +139,14 @@ CreateThread(function()
             if playerDead then 
                 fightJob = false
                 TaskWanderStandard(entity, 10.0, 10)
-                exports['okokNotify']:Alert('Fikk juling', 'Du fikk juling, kanskje du skal være mer forsiktig (15 MIN CD)..', 5000, error)
-                Citizen.Wait(900000) -- 15 min
+                exports['okokNotify']:Alert('Fikk juling', 'Du fikk juling, kanskje du skal være mer forsiktig..', 5000, error)
+                Citizen.Wait(200000) -- Cooldown på 3 minutter
                 DeleteEntity(entity)
                 coolDown = false
+                if blip ~= nil then
+                    RemoveBlip(blip)
+                    blip = nil
+                end
             end
         end
         Citizen.Wait(sleep)
