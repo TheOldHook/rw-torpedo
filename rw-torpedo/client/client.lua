@@ -2,21 +2,46 @@ local QBCore = exports['qb-core']:GetCoreObject()
 
 local fightJob = false
 local coolDown = false
+local scenarioStarted = false
 local blip = nil
+local timerStarted = false
+
+
+RegisterNUICallback("timerFinished", function(data, cb)
+    timerStarted = false
+    -- Handle the timer finished event
+    -- This could include stopping any relevant tasks or resetting any relevant variables
+    TriggerEvent("rw:client:missionFailed")
+    cb("ok")
+end)
+
+
+-- This function triggers the NUI event to display the timer
+function DisplayTimer(duration)
+    timerStarted = true
+    SendNUIMessage({
+        type = "startTimer",
+        duration = duration
+    })
+end
+
+-- This function triggers the NUI event to hide the timer
+function HideTimer()
+    timerStarted = false
+    SendNUIMessage({
+        type = "hideTimer"
+    })
+end
+
 
 RegisterCommand('stoptorpedo', function()
     fightJob = false
     coolDown = false
+    RemoveBlip(blip)
     QBCore.Functions.Notify('Du har avbrutt torpedo oppdraget', 'error')
 end)
 
--- CreateThread(function() Brukes til å sjekke om false eller true
---     while true do
---         print('FightJob: ' .. tostring(fightJob))
---         print('CoolDown: ' .. tostring(coolDown))
---         Wait(1000)
---     end
--- end)
+
 
 RegisterNetEvent('rw:client:Calling')
 AddEventHandler('rw:client:Calling', function()
@@ -60,51 +85,182 @@ AddEventHandler('rw:client:Called', function(data)
     end
 end)
 
-RegisterNetEvent('rw:client:getLocation', function(data, whatDo)
-    local src = source
-    local model = Config.model[math.random(#Config.model)]
-    local coords2 = Config.Coords[math.random(#Config.Coords)]
-    local entityWep = Config.Weapons[math.random(#Config.Weapons)]
-    local randomWep = math.random(1, 100)
+RegisterNetEvent('rw:client:getLocation', function(data, source)
+    Citizen.CreateThread(function()
+        fightJob = true
+        local source = source
+        local model = Config.model[math.random(#Config.model)]
+        local coords2 = Config.Coords[math.random(#Config.Coords)]
+        local entityWep = Config.Weapons[math.random(#Config.Weapons)]
+        local randomWep = math.random(1, 100)
+        local playerId = source
+        
 
-    fightJob = true
-    Wait(1000)
-    RequestModel(model)
-    while not HasModelLoaded(model) do
-    Wait(2)
-    end
-    entity = CreatePed(0, model, coords2, true, false)
-    SetModelAsNoLongerNeeded(model)
-    SetPedRelationshipGroupHash(model, `HATES_PLAYER`)
-    SetPedCombatAttributes(entity, 46, true)
-    SetPedCombatMovement(entity, 3)
-    SetPedCombatRange(entity, 2)
-    SetPedCombatAbility(entity, 100)
-    SetNewWaypoint(coords2)
-    SetPedMaxHealth(entity, 400)
-    SetPedArmour(entity, 100)
-    NetworkGetNetworkIdFromEntity(entity)
-    SetPedAccuracy(entity, 100)
-    
-    -- Blip 
-    blip = AddBlipForCoord(coords2)
-    SetBlipSprite(blip, 1)
-    SetBlipColour(blip, 1)
 
-    if randomWep >= 1 then
-        GiveWeaponToPed(entity, entityWep, 1, false, true)
-        local data = exports['ps-dispatch']:Torpedo('Torpedo oppdrag pågår, farlig vold', coords2)
-        if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") then
-            -- Give some ammo to the pistol
-            SetPedAmmo(entity, entityWep, 100)
+        RequestModel(model)
+        while not HasModelLoaded(model) do
+            Citizen.Wait(0)
         end
+
+        entity = CreatePed(0, model, coords2, true, false)
+        SetModelAsNoLongerNeeded(model)
+        SetPedCombatAttributes(entity, 46, true)
+        SetPedCombatMovement(entity, 3)
+        SetPedCombatRange(entity, 2)
+        SetPedCombatAbility(entity, 100)
+        SetNewWaypoint(coords2)
+        SetPedMaxHealth(entity, 800)
+        SetPedArmour(entity, 200)
+        NetworkGetNetworkIdFromEntity(entity)
+        SetPedAccuracy(entity, 100)
+
+        -- Blip
+        blip = AddBlipForCoord(coords2)
+        SetBlipSprite(blip, 1)
+        SetBlipColour(blip, 1)
+
+
+        if randomWep >= 35 then
+            GiveWeaponToPed(entity, entityWep, 1, false, true)
+            if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") or GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pumpshotgun") then
+                -- Give some ammo to the pistol
+                SetPedAmmo(entity, entityWep, 100)
+                SetPedAccuracy(entity, 100)
+                SetPedMaxHealth(entity, 600)
+                SetPedArmour(entity, 200)
+                local data = exports['ps-dispatch']:Torpedo('Voldsmøte rapportert', coords2)
+            end
+        end
+
+        local randomtime = math.random(50, 250)
+        if not timerStarted then
+            DisplayTimer(randomtime)
+        end
+
+
+        -- New thread for handling combat scenarios
+        Citizen.CreateThread(function()
+            while true do
+                local sleep = 5
+                local player = PlayerPedId()
+                local playerCoords = GetEntityCoords(player)
+                local entityCoords = GetEntityCoords(entity)
+                local distance = #(playerCoords - entityCoords)
+
+                if distance <= 10 then
+                    if not scenarioStarted then
+                        DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å kreve inn penger")
+                        if IsControlJustPressed(0, 38) then -- 'E' key
+                            TaskCombatPed(entity, player, 0, 16)
+                            scenarioStarted = true
+                        end
+                    else
+                        local entityDead = IsEntityDead(entity)
+                        if entityDead then
+                            TriggerEvent('rw:client:missionComplete')
+                        end
+                    end
+                else 
+                    scenarioStarted = false
+                    TaskWanderStandard(entity, 1.0, 1)
+                end
+                Citizen.Wait(sleep)
+            end
+        end)
+    end)
+end)
+
+
+
+
+RegisterNetEvent('rw:client:missionFailed')
+AddEventHandler('rw:client:missionFailed', function()
+    -- Do whatever you need to do when the mission has failed
+    -- This could include removing the entity, blip, and resetting any relevant variables
+    HideTimer()
+    exports['okokNotify']:Alert('Jobb ferdig', 'Du ble nok for sen denne gangen, prøv på nytt!', 5000, error)
+
+    fightJob = false
+    coolDown = false
+    if DoesEntityExist(entity) then
+        DeleteEntity(entity)
+    end
+    
+    if blip ~= nil then
+        RemoveBlip(blip)
+        blip = nil
     end
 end)
 
 
 
+
+function DrawText3Ds(x, y, z, text)
+    local onScreen, _x, _y = World3dToScreen2d(x, y, z)
+    local pX, pY, pZ = table.unpack(GetGameplayCamCoords())
+    local scale = 0.35
+
+    if onScreen then
+        SetTextScale(scale, scale)
+        SetTextFont(4)
+        SetTextProportional(1)
+        SetTextColour(255, 255, 255, 215)
+
+        SetTextDropshadow(0, 0, 0, 0, 255)
+        SetTextEdge(1, 0, 0, 0, 150)
+        SetTextDropShadow()
+        SetTextOutline()
+        SetTextEntry("STRING")
+        SetTextCentre(1)
+        AddTextComponentString(text)
+        DrawText(_x, _y)
+        local factor = (string.len(text)) / 370
+        DrawRect(_x, _y + 0.0125, 0.015 + factor, 0.03, 41, 11, 41, 100)
+    end
+end
+
+
+
+CreateThread(function()
+    while true do 
+        sleep = 100
+        if fightJob then
+            local player = PlayerPedId()
+
+            if IsEntityDead(player) then
+                fightJob = false
+                TaskWanderStandard(entity, 10.0, 10)
+                exports['okokNotify']:Alert('Fikk juling', 'Du fikk juling, kanskje du skal være mer forsiktig..', 5000, error)
+                HideTimer()
+                Citizen.Wait(20000) -- Cooldown på 3 minutter
+                DeleteEntity(entity)
+                coolDown = false
+                fightJob = false
+                SendNUIMessage({type = 'stopTimer'})
+                if blip ~= nil then
+                    RemoveBlip(blip)
+                    blip = nil
+                end
+                break -- Exit the loop if the player is dead
+            end
+
+            local playerCoords = GetEntityCoords(player)
+            local entityCoords = GetEntityCoords(entity)
+            local distance = #(playerCoords - entityCoords)
+
+            local entityDead = IsEntityDead(entity)
+            local entityHealth = GetEntityHealth(entity)
+
+            -- Rest of the code here
+        end
+        Citizen.Wait(sleep)
+    end
+end)
+
+
 RegisterNetEvent('rw:client:missionComplete')
 AddEventHandler('rw:client:missionComplete', function()
+    HideTimer()
     if fightJob then
         fightJob = false
         coolDown = false
@@ -121,60 +277,11 @@ AddEventHandler('rw:client:missionComplete', function()
 end)
 
 
-
-CreateThread(function()
-    while true do 
-        sleep = 1000
-        if fightJob then
-            sleep = 0
-            local player = PlayerPedId()
-
-            local playerCoords = GetEntityCoords(player)
-            local entityCoords = GetEntityCoords(entity)
-            local distance = #(playerCoords - entityCoords)
-
-            local entityDead = IsEntityDead(entity)
-            local playerDead = IsEntityDead(player)
-            local entityHealth = GetEntityHealth(entity)
-
-            if playerDead then 
-                fightJob = false
-                TaskWanderStandard(entity, 10.0, 10)
-                exports['okokNotify']:Alert('Fikk juling', 'Du fikk juling, kanskje du skal være mer forsiktig..', 5000, error)
-                Citizen.Wait(200000) -- Cooldown på 3 minutter
-                DeleteEntity(entity)
-                coolDown = false
-                if blip ~= nil then
-                    RemoveBlip(blip)
-                    blip = nil
-                end
-            end
-        end
-        Citizen.Wait(sleep)
-    end
-end)
-
-
-CreateThread(function()
-    while true do 
-        sleep = 1000
-        if fightJob then 
-            sleep = 0
-            local player = PlayerPedId()
-            local playerCoords = GetEntityCoords(player)
-            local entityCoords = GetEntityCoords(entity)
-            local distance = #(playerCoords - entityCoords)
-            if distance <= 10 then
-                TaskCombatPed(entity, player, 0, 16)
-                local entityDead = IsEntityDead(entity)
-                if entityDead then
-                    TriggerEvent('rw:client:missionComplete')
-                end
-            else 
-                TaskWanderStandard(entity, 10.0, 10)
-            end
-        end
-        Citizen.Wait(sleep)
-    end
-end)
-
+-- CreateThread(function() --Brukes til å sjekke om false eller true
+--     while true do
+--         print('FightJob: ' .. tostring(fightJob))
+--         print('CoolDown: ' .. tostring(coolDown))
+--         print('Scenario): ' .. tostring(scenarioStarted))
+--         Wait(1000)
+--     end
+-- end)

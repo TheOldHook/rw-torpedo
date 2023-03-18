@@ -18,3 +18,8 @@ server_script {
     'server/server.lua'
 }
 
+files {
+    'html/timer.html'
+}
+
+ui_page 'html/timer.html'

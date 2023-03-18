@@ -26,6 +26,8 @@ Config.Weapons = {
     `weapon_golfclub`,
     `weapon_crowbar`,
     `weapon_pistol`,
+    `weapon_pumpshotgun`,
+    `weapon_sledgehammer`,
 }
 
 
