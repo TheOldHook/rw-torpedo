@@ -10,7 +10,7 @@ There is also a line that makes some of the peds spawn with weapons.
 You need to add a item for the phone itself in shared for this useable item `burnertelefon`.
 
 Add this to your ps-dispatch client cl_events.lua
-`local function Torpedo(message, pos)
+```local function Torpedo(message, pos)
     local locationInfo = getStreetandZone(pos)
     local gender = GetPedGender()
     TriggerServerEvent("dispatch:server:notify", {
@@ -33,8 +33,6 @@ Add this to your ps-dispatch client cl_events.lua
     })
 end
 
-exports('Torpedo', Torpedo)`
+exports('Torpedo', Torpedo)```
 
-
-Good luck.
 
