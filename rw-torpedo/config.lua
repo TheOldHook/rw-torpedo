@@ -20,14 +20,10 @@ Config.model = {
 
 Config.Weapons = {
     `weapon_knife`,
-    `weapon_nightstick`,
     `weapon_hammer`,
     `weapon_bat`,
-    `weapon_golfclub`,
-    `weapon_crowbar`,
     `weapon_pistol`,
     `weapon_pumpshotgun`,
-    `weapon_sledgehammer`,
 }
 
 

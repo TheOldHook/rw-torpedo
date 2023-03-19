@@ -5,6 +5,7 @@ local coolDown = false
 local scenarioStarted = false
 local blip = nil
 local timerStarted = false
+local npcs = {}
 
 
 RegisterNUICallback("timerFinished", function(data, cb)
@@ -86,105 +87,115 @@ AddEventHandler('rw:client:Called', function(data)
 end)
 
 RegisterNetEvent('rw:client:getLocation', function(data, source)
-    Citizen.CreateThread(function()
-        fightJob = true
-        local source = source
-        local model = Config.model[math.random(#Config.model)]
-        local coords2 = Config.Coords[math.random(#Config.Coords)]
-        local entityWep = Config.Weapons[math.random(#Config.Weapons)]
-        local randomWep = math.random(1, 100)
-        local playerId = source
-        
+
+    fightJob = true
+    local source = source
+    local model = Config.model[math.random(#Config.model)]
+    local coords2 = Config.Coords[math.random(#Config.Coords)]
+    local entityWep = Config.Weapons[math.random(#Config.Weapons)]
+    local randomWep = math.random(1, 100)
+    local playerId = source
+    
 
 
-        RequestModel(model)
-        while not HasModelLoaded(model) do
-            Citizen.Wait(0)
+    RequestModel(model)
+    while not HasModelLoaded(model) do
+        Citizen.Wait(0)
+    end
+
+    entity = CreatePed(0, model, coords2, true, false)
+    SetModelAsNoLongerNeeded(model)
+    SetPedCombatAttributes(entity, 46, true)
+    SetPedCombatMovement(entity, 3)
+    SetPedCombatRange(entity, 2)
+    SetPedCombatAbility(entity, 100)
+    SetNewWaypoint(coords2)
+    SetPedMaxHealth(entity, 800)
+    SetPedArmour(entity, 200)
+    NetworkGetNetworkIdFromEntity(entity)
+    SetPedAccuracy(entity, 100)
+
+    -- Blip
+    blip = AddBlipForCoord(coords2)
+    SetBlipSprite(blip, 1)
+    SetBlipColour(blip, 1)
+
+
+    if randomWep >= 35 then
+        GiveWeaponToPed(entity, entityWep, 1, false, true)
+        if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") or GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pumpshotgun") then
+            -- Give some ammo to the pistol
+            SetPedAmmo(entity, entityWep, 100)
+            SetPedAccuracy(entity, 100)
+            SetPedMaxHealth(entity, 600)
+            SetPedArmour(entity, 200)
+            local data = exports['ps-dispatch']:Torpedo('Voldsmøte rapportert', coords2)
         end
+    end
 
-        entity = CreatePed(0, model, coords2, true, false)
-        SetModelAsNoLongerNeeded(model)
-        SetPedCombatAttributes(entity, 46, true)
-        SetPedCombatMovement(entity, 3)
-        SetPedCombatRange(entity, 2)
-        SetPedCombatAbility(entity, 100)
-        SetNewWaypoint(coords2)
-        SetPedMaxHealth(entity, 800)
-        SetPedArmour(entity, 200)
-        NetworkGetNetworkIdFromEntity(entity)
-        SetPedAccuracy(entity, 100)
+    local randomtime = math.random(50, 250)
+    if not timerStarted then
+        DisplayTimer(randomtime)
+    end
 
-        -- Blip
-        blip = AddBlipForCoord(coords2)
-        SetBlipSprite(blip, 1)
-        SetBlipColour(blip, 1)
+    npcs[entity] = { 
+        coords = coords2, 
+        entityWep = entityWep, 
+        playerId = playerId,
+        scenarioStarted = false
+    }
+end)
 
 
-        if randomWep >= 35 then
-            GiveWeaponToPed(entity, entityWep, 1, false, true)
-            if GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pistol") or GetWeapontypeGroup(entityWep) == GetWeapontypeGroup("weapon_pumpshotgun") then
-                -- Give some ammo to the pistol
-                SetPedAmmo(entity, entityWep, 100)
-                SetPedAccuracy(entity, 100)
-                SetPedMaxHealth(entity, 600)
-                SetPedArmour(entity, 200)
-                local data = exports['ps-dispatch']:Torpedo('Voldsmøte rapportert', coords2)
-            end
-        end
 
-        local randomtime = math.random(50, 250)
-        if not timerStarted then
-            DisplayTimer(randomtime)
-        end
+-- New thread for handling combat scenarios
+Citizen.CreateThread(function()
+    while true do
+        local sleep = 5
+        local player = PlayerPedId()
+        local playerCoords = GetEntityCoords(player)
+        local entityCoords = GetEntityCoords(entity)
+        local distance = #(playerCoords - entityCoords)
 
-
-        -- New thread for handling combat scenarios
-        Citizen.CreateThread(function()
-            while true do
-                local sleep = 5
-                local player = PlayerPedId()
-                local playerCoords = GetEntityCoords(player)
-                local entityCoords = GetEntityCoords(entity)
-                local distance = #(playerCoords - entityCoords)
-
-                if distance <= 25 then
-                    if not scenarioStarted then
-                        DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å snakke med personen")
+        if distance <= 25 then
+            if not scenarioStarted then
+                DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å snakke med personen")
+                if IsControlJustPressed(0, 38) then -- 'E' key
+                    TaskCombatPed(entity, player, 0, 16)
+                    scenarioStarted = true
+                    Citizen.Wait(sleep)
+                end
+            else
+                local entityDead = IsEntityDead(entity)
+                if entityDead then
+                    if distance <= 2 then
+                        DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å kreve inn penger")
                         if IsControlJustPressed(0, 38) then -- 'E' key
-                            TaskCombatPed(entity, player, 0, 16)
+                            TaskStartScenarioInPlace(player, 'CODE_HUMAN_POLICE_INVESTIGATE', 0, false)
+                            QBCore.Functions.Progressbar("HAVERSTCOKE", "Ser etter penger", 5000, false, true, {
+                                disableMovement = true,
+                                disableCarMovement = true,
+                                disableMouse = false,
+                                disableCombat = true,
+                            }, {}, {}, {}, function()
+                            TriggerEvent('rw:client:missionComplete')
                             scenarioStarted = true
-                            Citizen.Wait(sleep)
-                        end
-                    else
-                        local entityDead = IsEntityDead(entity)
-                        if entityDead then
-                            if distance <= 2 then
-                                DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å kreve inn penger")
-                                if IsControlJustPressed(0, 38) then -- 'E' key
-                                    TaskStartScenarioInPlace(player, 'CODE_HUMAN_POLICE_INVESTIGATE', 0, false)
-                                    QBCore.Functions.Progressbar("HAVERSTCOKE", "Ser etter penger", 5000, false, true, {
-                                        disableMovement = true,
-                                        disableCarMovement = true,
-                                        disableMouse = false,
-                                        disableCombat = true,
-                                    }, {}, {}, {}, function()
-                                    TriggerEvent('rw:client:missionComplete')
-                                    scenarioStarted = true
-                                    ClearPedTasks(playerPed)                                
-                                end)
-                            end
-                        end
+                            ClearPedTasks(playerPed)
+                            npcs[entity] = nil
+                            print(npcs)                                
+                        end)
                     end
                 end
-                else 
-                    scenarioStarted = false
-                    TaskWanderStandard(entity, 1.0, 1)
-                end
-                Citizen.Wait(sleep)
             end
-        end)
-    end)
+        end
+        else 
+            scenarioStarted = false
+            TaskWanderStandard(entity, 1.0, 1)
+        end
+        Citizen.Wait(sleep)
+    end
 end)
+
 
 
 
