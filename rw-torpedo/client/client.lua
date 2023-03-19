@@ -181,8 +181,7 @@ Citizen.CreateThread(function()
                             TriggerEvent('rw:client:missionComplete')
                             scenarioStarted = true
                             ClearPedTasks(playerPed)
-                            npcs[entity] = nil
-                            print(npcs)                                
+                            npcs[entity] = nil                           
                         end)
                     end
                 end
@@ -209,6 +208,7 @@ AddEventHandler('rw:client:missionFailed', function()
 
     fightJob = false
     coolDown = false
+    npcs[entity] = nil
     if DoesEntityExist(entity) then
         DeleteEntity(entity)
     end
@@ -258,6 +258,7 @@ CreateThread(function()
                 fightJob = false
                 TaskWanderStandard(entity, 10.0, 10)
                 exports['okokNotify']:Alert('Fikk juling', 'Du fikk juling, kanskje du skal være mer forsiktig..', 5000, error)
+                npcs[entity] = nil
                 HideTimer()
                 Citizen.Wait(20000) -- Cooldown på 3 minutter
                 DeleteEntity(entity)
