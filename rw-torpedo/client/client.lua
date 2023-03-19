@@ -80,7 +80,7 @@ AddEventHandler('rw:client:Called', function(data)
         --    }
         --})
         PhonePlayAnim('text')
-        exports['okokNotify']:Alert('Ny melding', 'Du har fått en ny torpedo jobb! Sjekk din gps!', 5000, success)
+        exports['okokNotify']:Alert('Ny melding', 'Du har fått en ny torpedo jobb! Sjekk din gps!', 2000, success)
         deletePhone()
     end
 end)
@@ -147,19 +147,35 @@ RegisterNetEvent('rw:client:getLocation', function(data, source)
                 local entityCoords = GetEntityCoords(entity)
                 local distance = #(playerCoords - entityCoords)
 
-                if distance <= 10 then
+                if distance <= 25 then
                     if not scenarioStarted then
-                        DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å kreve inn penger")
+                        DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å snakke med personen")
                         if IsControlJustPressed(0, 38) then -- 'E' key
                             TaskCombatPed(entity, player, 0, 16)
                             scenarioStarted = true
+                            Citizen.Wait(sleep)
                         end
                     else
                         local entityDead = IsEntityDead(entity)
                         if entityDead then
-                            TriggerEvent('rw:client:missionComplete')
+                            if distance <= 2 then
+                                DrawText3Ds(entityCoords.x, entityCoords.y, entityCoords.z, "~g~E~w~ - for å kreve inn penger")
+                                if IsControlJustPressed(0, 38) then -- 'E' key
+                                    TaskStartScenarioInPlace(player, 'CODE_HUMAN_POLICE_INVESTIGATE', 0, false)
+                                    QBCore.Functions.Progressbar("HAVERSTCOKE", "Ser etter penger", 5000, false, true, {
+                                        disableMovement = true,
+                                        disableCarMovement = true,
+                                        disableMouse = false,
+                                        disableCombat = true,
+                                    }, {}, {}, {}, function()
+                                    TriggerEvent('rw:client:missionComplete')
+                                    scenarioStarted = true
+                                    ClearPedTasks(playerPed)                                
+                                end)
+                            end
                         end
                     end
+                end
                 else 
                     scenarioStarted = false
                     TaskWanderStandard(entity, 1.0, 1)
@@ -265,7 +281,7 @@ AddEventHandler('rw:client:missionComplete', function()
         fightJob = false
         coolDown = false
         exports['okokNotify']:Alert('Jobb ferdig', 'Du banket personen lett! Kanskje du kan ta en ny torpedo jobb? Ring meg!', 5000, success)
-        Wait(5000)
+        Wait(1000)
         TriggerServerEvent('rw:server:reward')
         DeleteEntity(entity)
         -- remove the blip if it was added
